@@ -69,7 +69,10 @@ component {
 			name = beanName, qualifier = singleDir, isSingleton = isSingleton, 
 			path = cfcPath, cfc = dottedPath, metadata = cleanMetadata( dottedPath )
 		};
-		variables.beanInfo[ beanName ] = metadata;
+		
+		if ( !structKeyExists( variables.beanInfo, beanName ) ) variables.beanInfo[ beanName ] = structNew();
+		structAppend( variables.beanInfo[ beanName ], metadata );
+
         return this;
 	}
 	
@@ -511,16 +514,19 @@ component {
                             var argBean = { };
                             // handle known required arguments
                             if ( info.metadata.constructor[ arg ] ) {
-                                var beanMissing = true;
+                                var argMissing = true;
                                 if ( containsBean( arg ) ) {
                                     argBean = resolveBeanCreate( arg, accumulator );
                                     if ( structKeyExists( argBean, 'bean' ) ) {
                                         args[ arg ] = argBean.bean;
-                                        beanMissing = false;
+                                        argMissing = false;
                                     }
+                                } else if ( structKeyExists( info, 'properties' ) AND structKeyExists( info.properties, arg ) ) {
+                                    args[ arg ] = info.properties[ arg ];
+                                    argMissing = false;
                                 }
-                                if ( beanMissing ) {
-								    throw 'bean not found: #arg#; while resolving constructor arguments for #beanName#';
+                                if ( argMissing ) {
+								    throw 'argument not found: #arg#; while resolving constructor arguments for #beanName#';
                                 }
                             } else if ( containsBean( arg ) ) {
                                 // optional but present
@@ -588,6 +594,16 @@ component {
 		if ( structKeyExists( variables.config, 'constants' ) ) {
 			for ( var beanName in variables.config.constants ) {
 				variables.beanInfo[ beanName ] = { value = variables.config.constants[ beanName ], isSingleton = true };
+			}
+		}
+
+		if ( structKeyExists( variables.config, 'properties' ) ) {
+			for ( var beanName in variables.config.properties ) {
+				if ( structKeyExists( variables.beanInfo, beanName ) ) {
+					variables.beanInfo[ beanName ].properties = variables.config.properties[ beanName ];
+				} else {
+					variables.beanInfo[ beanName ] = { properties = variables.config.properties[ beanName ] };
+				}
 			}
 		}
 		
